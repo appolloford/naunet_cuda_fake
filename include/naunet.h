@@ -52,6 +52,10 @@ class Naunet {
     SUNCudaThreadDirectExecPolicy *stream_exec_policy_[NSTREAMS];
     SUNCudaBlockReduceExecPolicy *reduce_exec_policy_[NSTREAMS];
 
+    // pinned host memory, required by cuda stream
+    realtype *h_ab;
+    NaunetData *h_data;
+
     /*  */
 };
 

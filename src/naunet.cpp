@@ -8,6 +8,7 @@
 #include "naunet.h"
 /*  */
 #include "naunet_ode.h"
+#include "nvToolsExt.h"
 
 // check_flag function is from the cvDiurnals_ky.c example from the CVODE
 // package. Check function return value...
@@ -54,6 +55,9 @@ Naunet::Naunet(){};
 Naunet::~Naunet(){};
 
 int Naunet::Init(int nsystem, double atol, double rtol) {
+
+    nvtxRangePushA("Init");
+
     n_system_ = nsystem;
     atol_     = atol;
     rtol_     = rtol;
@@ -64,6 +68,9 @@ int Naunet::Init(int nsystem, double atol, double rtol) {
         printf("Invalid size of system!");
         return NAUNET_FAIL;
     }
+
+    cudaMallocHost((void **)&h_ab, sizeof(realtype) * n_system_ * NEQUATIONS);
+    cudaMallocHost((void **)&h_data, sizeof(NaunetData) * n_system_);
 
     cudaError_t cuerr;
     int flag;
@@ -111,6 +118,8 @@ int Naunet::Init(int nsystem, double atol, double rtol) {
 
     /* */
 
+    nvtxRangePop();
+
     return NAUNET_SUCCESS;
 };
 
@@ -129,6 +138,9 @@ int Naunet::Finalize() {
     }
     /*  */
 
+    cudaFreeHost(h_ab);
+    cudaFreeHost(h_data);
+
     return NAUNET_SUCCESS;
 };
 
@@ -144,6 +156,12 @@ int Naunet::Reset(int nsystem, double atol, double rtol) {
     n_system_ = nsystem;
     atol_     = atol;
     rtol_     = rtol;
+
+    cudaFreeHost(h_ab);
+    cudaFreeHost(h_data);
+
+    cudaMallocHost((void **)&h_ab, sizeof(realtype) * n_system_ * NEQUATIONS);
+    cudaMallocHost((void **)&h_data, sizeof(NaunetData) * n_system_);
 
     int flag;
 
@@ -191,12 +209,6 @@ int Naunet::Solve(realtype *ab, realtype dt, NaunetData *data) {
 
     /* */
 
-    realtype *h_ab;
-    NaunetData *h_data;
-
-    cudaMallocHost((void **)&h_ab, sizeof(realtype) * n_system_ * NEQUATIONS);
-    cudaMallocHost((void **)&h_data, sizeof(NaunetData) * n_system_);
-
     for (int idx = 0; idx < n_system_ * NEQUATIONS; idx++)
     {
         h_ab[idx] = ab[idx];
@@ -242,11 +254,7 @@ int Naunet::Solve(realtype *ab, realtype dt, NaunetData *data) {
         }
     }
 
-
     cudaDeviceSynchronize();
-
-    cudaFreeHost(h_ab);
-    cudaFreeHost(h_data);
 
     /* */
 
