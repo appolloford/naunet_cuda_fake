@@ -95,7 +95,6 @@ int Jac(realtype t, N_Vector u, N_Vector fu, SUNMatrix jmatrix, void *user_data,
     cudaMalloc((void **)&d_udata, sizeof(NaunetData) * nsystem);
     cudaMemcpyAsync(d_udata, h_udata, sizeof(NaunetData) * nsystem,
                cudaMemcpyHostToDevice, stream);
-    // cudaStreamSynchronize();
     // cudaDeviceSynchronize();
 
     unsigned block_size = min(BLOCKSIZE, nsystem);
@@ -103,7 +102,6 @@ int Jac(realtype t, N_Vector u, N_Vector fu, SUNMatrix jmatrix, void *user_data,
         max(1, min(MAX_NSYSTEMS_PER_STREAM / BLOCKSIZE, nsystem / BLOCKSIZE));
     JacKernel<<<grid_size, block_size, 0, stream>>>(y, data, d_udata, nsystem);
 
-    // cudaStreamSynchronize();
     // cudaDeviceSynchronize();
     cudaError_t cuerr = cudaGetLastError();
     if (cuerr != cudaSuccess) {

@@ -47,7 +47,6 @@ foreach(name ${TESTTARGETS})
             ${targetname}
                 PRIVATE 
                     ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
-                    "/software/sse/manual/CUDA/11.4.2_470.57.02/include/nvtx3"
         )
     endif()
 
@@ -61,9 +60,7 @@ foreach(name ${TESTTARGETS})
     endif()
 
     target_link_libraries(
-        ${targetname}
-            PUBLIC
-                nvToolsExt
+        ${targetname} 
             PRIVATE
                 ${NAUNETLIB}
     )

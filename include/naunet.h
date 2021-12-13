@@ -36,6 +36,7 @@ class Naunet {
 
    private:
     int n_system_;
+    int n_stream_in_use_;
     realtype atol_;
     realtype rtol_;
 
@@ -52,7 +53,6 @@ class Naunet {
     SUNCudaThreadDirectExecPolicy *stream_exec_policy_[NSTREAMS];
     SUNCudaBlockReduceExecPolicy *reduce_exec_policy_[NSTREAMS];
 
-    // pinned host memory, required by cuda stream
     realtype *h_ab;
     NaunetData *h_data;
 
