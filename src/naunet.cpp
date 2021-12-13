@@ -191,33 +191,34 @@ int Naunet::Solve(realtype *ab, realtype dt, NaunetData *data) {
 
     /* */
 
+    realtype *h_ab;
+    NaunetData *h_data;
+
+    cudaMallocHost((void **)&h_ab, sizeof(realtype) * n_system_ * NEQUATIONS);
+    cudaMallocHost((void **)&h_data, sizeof(NaunetData) * n_system_);
+
+    for (int idx = 0; idx < n_system_ * NEQUATIONS; idx++)
+    {
+        h_ab[idx] = ab[idx];
+    }
+    for (int idx = 0; idx < n_system_; idx++)
+    {
+        h_data[idx] = data[idx];
+    }
+
     for (int i = 0; i < NSTREAMS; i++) {
         realtype t0 = 0.0;
-
-        realtype *local_ab;
-        NaunetData *local_data;
-
-        cudaMallocHost((void **)&local_ab, sizeof(realtype) * n_system_ * NEQUATIONS / NSTREAMS);
-        cudaMallocHost((void **)&local_data, sizeof(NaunetData) * n_system_ / NSTREAMS);
-        for (int idx = 0; idx < n_system_ * NEQUATIONS / NSTREAMS; idx++)
-        {
-            local_ab[idx] = ab[idx + i * n_system_ * NEQUATIONS / NSTREAMS];
-        }
-        for (int idx = 0; idx < n_system_ / NSTREAMS; idx++)
-        {
-            local_data[idx] = data[i * n_system_ / NSTREAMS + idx];
-        }
 
         // ! Bug: I don't know why n_vector does not save the stream_exec_policy and reduce_exec_policy
         N_VSetKernelExecPolicy_Cuda(cv_y_[i], stream_exec_policy_[i], reduce_exec_policy_[i]);
 
         // This way is too slow
         // realtype *ydata = N_VGetArrayPointer(cv_y_[i]);
-        // for (int i = 0; i < NEQUATIONS; i++)
+        // for (int s = 0; s < n_system_ * NEQUATIONS / NSTREAMS; s++)
         // {
-        //     ydata[i] = ab[i];
+        //     ydata[s] = h_ab[s + i * n_system_ * NEQUATIONS / NSTREAMS];
         // }
-        N_VSetHostArrayPointer_Cuda(local_ab, cv_y_[i]);
+        N_VSetHostArrayPointer_Cuda(h_ab + i * n_system_ * NEQUATIONS / NSTREAMS, cv_y_[i]);
         N_VCopyToDevice_Cuda(cv_y_[i]);
 
 #ifdef NAUNET_DEBUG
@@ -228,23 +229,24 @@ int Naunet::Solve(realtype *ab, realtype dt, NaunetData *data) {
 
         flag = CVodeReInit(cv_mem_[i], 0.0, cv_y_[i]);
         if (check_flag(&flag, "CVodeReInit", 1)) return 1;
-        flag = CVodeSetUserData(cv_mem_[i], local_data);
+        flag = CVodeSetUserData(cv_mem_[i], h_data + i * n_system_ / NSTREAMS);
         if (check_flag(&flag, "CVodeSetUserData", 1)) return 1;
 
         flag = CVode(cv_mem_[i], dt, cv_y_[i], &t0, CV_NORMAL);
 
         N_VCopyFromDevice_Cuda(cv_y_[i]);
-        local_ab = N_VGetHostArrayPointer_Cuda(cv_y_[i]);
+        realtype *local_ab = N_VGetHostArrayPointer_Cuda(cv_y_[i]);
         for (int idx = 0; idx < n_system_ * NEQUATIONS / NSTREAMS; idx++)
         {
             ab[idx + i * n_system_ * NEQUATIONS / NSTREAMS] = local_ab[idx];
         }
-
-        cudaDeviceSynchronize();
-
-        cudaFreeHost(local_ab);
-        cudaFreeHost(local_data);
     }
+
+
+    cudaDeviceSynchronize();
+
+    cudaFreeHost(h_ab);
+    cudaFreeHost(h_data);
 
     /* */
 
