@@ -2,7 +2,9 @@ set(
     OBJTARGETS
         naunet_constants
         naunet_physics
-        naunet_ode
+        naunet_rates
+        naunet_fex
+        naunet_jac
 )
 
 foreach(name ${OBJTARGETS})
